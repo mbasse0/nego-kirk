@@ -12,14 +12,37 @@ from pydantic import BaseModel
 import uuid
 import requests
 import json
+import cv2
+import subprocess
+import time
+import shutil
+import glob
+import sys
+from pathlib import Path
+from whisper.op_kirk_agent import (
+    get_kirk_response,
+    summarize_reply,
+    select_best_rag_chunk,
+)
+from whisper.rag_engine import retrieve_chunks
+
 
 # Get the directory where this script is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
-env_path = os.path.join(script_dir, '.env')
+env_path = os.path.join(script_dir, ".env")
 
-# Create audio directory if it doesn't exist
-audio_dir = os.path.join(script_dir, 'audio')
-os.makedirs(audio_dir, exist_ok=True)
+# Create necessary directories
+audio_dir = os.path.join(script_dir, "audio")
+video_dir = os.path.join(script_dir, "video")
+library_dir = os.path.join(script_dir, "library")
+temp_dir = os.path.join(script_dir, "temp")
+
+for dir_path in [audio_dir, video_dir, library_dir, temp_dir]:
+    os.makedirs(dir_path, exist_ok=True)
+
+# Create temporary working directory with no spaces
+temp_working_dir = "/tmp/wav2lip_temp"
+os.makedirs(temp_working_dir, exist_ok=True)
 
 # Load environment variables
 load_dotenv(env_path)
@@ -62,14 +85,96 @@ SYSTEM_PROMPT = (
 # Initialize conversation history
 chat_history = [{"role": "system", "content": SYSTEM_PROMPT}]
 
+# Track latest generated files
+latest_audio_file = None
+latest_video_file = None
+
+
 class SpeechRequest(BaseModel):
     text: str
+
+
+def run_wav2lip(audio_path, avatar_path=None):
+    """Run the Wav2Lip model to generate a lip-synced video using the simplified approach"""
+    print(f"Starting Wav2Lip with audio: {audio_path}")
+    
+    # Use the specified avatar or default
+    if not avatar_path:
+        avatar_path = os.path.join(library_dir, "avatar.jpeg")
+        if not os.path.exists(avatar_path):
+            # Try png as fallback
+            avatar_path = os.path.join(library_dir, "avatar.png")
+            if not os.path.exists(avatar_path):
+                raise FileNotFoundError(f"No avatar found at {avatar_path}")
+    
+    # Generate unique output filename
+    timestamp = time.strftime("%Y%m%d_%H%M%S")
+    unique_id = str(uuid.uuid4())[:8]
+    output_path = os.path.join(video_dir, f"result_{timestamp}_{unique_id}.mp4")
+    
+    # Optimize image resolution
+    img = cv2.imread(avatar_path)
+    height, width = img.shape[:2]
+    aspect_ratio = width / height
+    new_height = int(256 / aspect_ratio)
+    resized = cv2.resize(img, (256, new_height))
+    optimized_image = os.path.join(temp_dir, 'optimized_avatar.jpeg')
+    cv2.imwrite(optimized_image, resized)
+    
+    # Find Wav2Lip directory (case insensitive)
+    if os.path.exists(os.path.join(script_dir, 'wav2lip')):
+        wav2lip_dir = os.path.join(script_dir, 'wav2lip')
+    elif os.path.exists(os.path.join(script_dir, 'Wav2Lip')):
+        wav2lip_dir = os.path.join(script_dir, 'Wav2Lip')
+    else:
+        raise FileNotFoundError("Wav2Lip directory not found")
+    
+    # Copy files to the temporary directory
+    temp_audio = os.path.join(temp_working_dir, f"input_{unique_id}.mp3")
+    temp_image = os.path.join(temp_working_dir, f"face_{unique_id}.jpeg")
+    temp_output = os.path.join(temp_working_dir, f"output_{unique_id}.mp4")
+    
+    shutil.copy2(audio_path, temp_audio)
+    shutil.copy2(optimized_image, temp_image)
+    
+    # Set paths
+    inference_path = os.path.join(wav2lip_dir, 'inference.py')
+    checkpoint_path = os.path.join(wav2lip_dir, 'checkpoints', 'wav2lip_gan.pth')
+    
+    # Basic command with paths that don't have spaces
+    command = [
+        'python', inference_path,
+        '--checkpoint_path', checkpoint_path,
+        '--face', temp_image,
+        '--audio', temp_audio,
+        '--outfile', temp_output,
+        '--pads', '0', '5', '0', '0',
+        '--nosmooth'
+    ]
+    
+    # Run Wav2Lip
+    print("Running Wav2Lip...")
+    try:
+        subprocess.run(command, check=True)
+        
+        # Copy the result back if it exists
+        if os.path.exists(temp_output):
+            shutil.copy2(temp_output, output_path)
+            print(f"Success! Output saved to: {output_path}")
+            return os.path.basename(output_path)
+        else:
+            print("Failed to generate video.")
+            return None
+    except Exception as e:
+        print(f"Error running Wav2Lip: {str(e)}")
+        return None
+
 
 @app.post("/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
     try:
         print("Received audio file for transcription")
-        
+
         # Save uploaded file temporarily
         with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
             content = await file.read()
@@ -82,38 +187,104 @@ async def transcribe_audio(file: UploadFile = File(...)):
             with open(temp_file_path, "rb") as audio_file:
                 print("Sending audio to Whisper API")
                 transcript = client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=audio_file,
-                    language="en"
+                    model="whisper-1", file=audio_file, language="en"
                 )
                 print(f"Transcription successful: {transcript.text}")
-                
+
                 # Clean up temporary file
                 os.unlink(temp_file_path)
-                
+
                 return {"text": transcript.text}
         except Exception as e:
             print(f"Error during transcription: {str(e)}")
             # Clean up temporary file in case of error
             os.unlink(temp_file_path)
-            raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
-            
+            raise HTTPException(
+                status_code=500, detail=f"Transcription failed: {str(e)}"
+            )
+
     except Exception as e:
         print(f"Error processing audio file: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/generate-speech")
 async def generate_speech(request: SpeechRequest):
     try:
         print(f"Generating speech for text: {request.text}")
-        
+
         # Get Kirk's response using GPT
+        # chat_history.append({"role": "user", "content": request.text})
+        # response = client.chat.completions.create(
+        #     model="gpt-3.5-turbo", messages=chat_history
+        # )
+        # kirk_response = response.choices[0].message.content
+        # chat_history.append({"role": "assistant", "content": kirk_response})
+        rag_chunks = retrieve_chunks(request.text, k=3)
+        kirk_response = get_kirk_response(request.text, chat_history)
+        summary = summarize_reply(kirk_response)
+        book_insight = select_best_rag_chunk(rag_chunks, kirk_response, request.text)
         chat_history.append({"role": "user", "content": request.text})
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=chat_history
+        chat_history.append({"role": "assistant", "content": kirk_response})
+
+        # Generate speech using ElevenLabs
+        elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
+        elevenlabs_voice_id = os.getenv("ELEVENLABS_VOICE_ID", "5ERbh3mpIEzi6sfFHo7H")
+
+        if not elevenlabs_api_key:
+            raise HTTPException(status_code=500, detail="ELEVENLABS_API_KEY not set")
+
+        url = (
+            f"https://api.elevenlabs.io/v1/text-to-speech/{elevenlabs_voice_id}/stream"
         )
-        kirk_response = response.choices[0].message.content
+        payload = {
+            "text": kirk_response,
+            "voice_settings": {
+                "stability": 0.2,
+                "similarity_boost": 0.95,
+                "style": 0.5,
+                "use_speaker_boost": True,
+            },
+        }
+        headers = {"xi-api-key": elevenlabs_api_key}
+
+        response = requests.post(url, json=payload, headers=headers)
+        if response.status_code != 200:
+            raise HTTPException(
+                status_code=500, detail=f"Error generating speech: {response.text}"
+            )
+
+        # Save audio to file in audio directory
+        filename = f"{uuid.uuid4()}.mp3"
+        filepath = os.path.join(audio_dir, filename)
+        with open(filepath, "wb") as f:
+            f.write(response.content)
+        print(f"Audio saved to: {filepath}")
+
+        # return {"audio_url": f"/audio/{filename}", "text": kirk_response}
+        return {
+            "audio_url": f"/audio/{filename}",
+            "text": kirk_response,
+            "summary": summary,
+            "book_insight": book_insight,
+        }
+
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/generate-video")
+async def generate_video(request: SpeechRequest):
+    try:
+        print(f"Generating video for text: {request.text}")
+        
+        # Get Kirk's response using GPT with RAG
+        rag_chunks = retrieve_chunks(request.text, k=3)
+        kirk_response = get_kirk_response(request.text, chat_history)
+        summary = summarize_reply(kirk_response)
+        book_insight = select_best_rag_chunk(rag_chunks, kirk_response, request.text)
+        chat_history.append({"role": "user", "content": request.text})
         chat_history.append({"role": "assistant", "content": kirk_response})
         
         # Generate speech using ElevenLabs
@@ -134,38 +305,91 @@ async def generate_speech(request: SpeechRequest):
             },
         }
         headers = {"xi-api-key": elevenlabs_api_key}
-
+        
         response = requests.post(url, json=payload, headers=headers)
         if response.status_code != 200:
             raise HTTPException(status_code=500, detail=f"Error generating speech: {response.text}")
-
+        
         # Save audio to file in audio directory
-        filename = f"{uuid.uuid4()}.mp3"
-        filepath = os.path.join(audio_dir, filename)
-        with open(filepath, 'wb') as f:
+        audio_filename = f"{uuid.uuid4()}.mp3"
+        audio_filepath = os.path.join(audio_dir, audio_filename)
+        with open(audio_filepath, "wb") as f:
             f.write(response.content)
-        print(f"Audio saved to: {filepath}")
-
-        return {"audio_url": f"/audio/{filename}", "text": kirk_response}
+        print(f"Audio saved to: {audio_filepath}")
+        
+        # Store the latest audio file for future use
+        global latest_audio_file
+        latest_audio_file = audio_filepath
+        
+        # Run Wav2Lip to generate video
+        video_filename = run_wav2lip(audio_filepath)
+        
+        if video_filename:
+            # Store the latest video file
+            global latest_video_file
+            latest_video_file = os.path.join(video_dir, video_filename)
+            
+            return {
+                "audio_url": f"/audio/{audio_filename}",
+                "video_url": f"/video/{video_filename}",
+                "text": kirk_response,
+                "summary": summary,
+                "book_insight": book_insight
+            }
+        else:
+            # Return audio-only response if video generation fails
+            return {
+                "audio_url": f"/audio/{audio_filename}",
+                "text": kirk_response,
+                "summary": summary,
+                "book_insight": book_insight,
+                "error": "Video generation failed"
+            }
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print(f"Error generating video: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/video/{filename}")
+async def get_video(filename: str):
+    try:
+        print(f"Requested video file: {filename}")
+        
+        # Get the full path of the video file
+        video_path = os.path.join(video_dir, filename)
+        
+        # Check if file exists
+        if not os.path.exists(video_path):
+            raise HTTPException(status_code=404, detail="Video file not found")
+        
+        print(f"Serving video from {video_path}, size: {os.path.getsize(video_path)} bytes")
+        return FileResponse(
+            path=video_path, 
+            media_type="video/mp4",
+            filename=filename
+        )
+    except Exception as e:
+        print(f"Error serving video: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/audio/{filename}")
 async def get_audio(filename: str):
     try:
         # Get the full path of the audio file
         audio_path = os.path.join(audio_dir, filename)
-        
+
         # Check if file exists
         if not os.path.exists(audio_path):
             raise HTTPException(status_code=404, detail="Audio file not found")
-        
+
         # Return the audio file
         return FileResponse(audio_path, media_type="audio/mpeg")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)
