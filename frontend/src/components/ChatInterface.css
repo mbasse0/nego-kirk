@@ -1,11 +1,13 @@
 .chat-interface {
-  width: 100%;
-  max-width: 600px;
+  max-width: 1200px;
+  /* increase from default (often 800px or so) */
+  margin: 2rem auto;
+  padding: 1rem;
   background-color: white;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
+
 
 .chat-form {
   display: flex;
@@ -74,4 +76,49 @@
 
 .audio-player {
   width: 100%;
-} 
+}
+
+.chat-main {
+  display: flex;
+  gap: 2rem;
+  margin-top: 1.5rem;
+}
+
+.chat-left {
+  flex: 2;
+}
+
+.chat-right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.summary-panel,
+.book-panel {
+  padding: 1rem;
+  background-color: #f1f3f5;
+  border-radius: 4px;
+  border-left: 4px solid #4a90e2;
+}
+
+.summary-panel h4,
+.book-panel h4 {
+  margin: 0 0 0.5rem 0;
+  color: #4a90e2;
+}
+
+.video-player-container {
+  margin-top: 1rem;
+  border-top: 1px solid #eee;
+  padding-top: 1rem;
+}
+
+.video-player {
+  width: 100%;
+  max-height: 360px;
+  border-radius: 6px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
+  object-fit: cover;
+}

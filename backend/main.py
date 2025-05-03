@@ -178,6 +178,14 @@ async def generate_speech(request: SpeechRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/video/{filename}")
+async def get_video(filename: str):
+    video_path = os.path.join("video", filename)
+    if not os.path.exists(video_path):
+        raise HTTPException(status_code=404, detail="Video file not found")
+    return FileResponse(video_path, media_type="video/mp4")
+
+
 @app.get("/audio/{filename}")
 async def get_audio(filename: str):
     try:
