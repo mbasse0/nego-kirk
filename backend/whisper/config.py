@@ -8,7 +8,7 @@ load_dotenv()
 
 # Access with fallback (optional)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-ELEVEN_LABS_API_KEY = os.getenv("ELEVEN_LABS_API_KEY")
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 ELEVEN_LABS_VOICE_ID = os.getenv("ELEVEN_LABS_VOICE_ID")
 
 # ─── CHATBOT BEHAVIOR ──────────────────────────────────────────────────────────
