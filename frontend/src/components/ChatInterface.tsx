@@ -7,10 +7,12 @@ const BACKEND_URL = 'http://localhost:8000';
 const ChatInterface: React.FC = () => {
   const [text, setText] = useState('');
   const [audioURL, setAudioURL] = useState<string | null>(null);
+  const [videoURL, setVideoURL] = useState<string | null>(null);
   const [kirkResponse, setKirkResponse] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
   const [bookInsight, setBookInsight] = useState<string | null>(null);
-  const [videoURL] = useState<string | null>(`${BACKEND_URL}/video/output.mp4`);
+  const [isLoading, setIsLoading] = useState(false);
+  const [useVideo, setUseVideo] = useState(true);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -21,9 +23,17 @@ const ChatInterface: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!text.trim()) return;
+    
+    setIsLoading(true);
+    setAudioURL(null);
+    setVideoURL(null);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/generate-speech`, {
+      // Choose endpoint based on video toggle
+      const endpoint = useVideo ? '/generate-video' : '/generate-speech';
+      
+      console.log(`Sending request to ${endpoint}`);
+      const response = await fetch(`${BACKEND_URL}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -33,13 +43,24 @@ const ChatInterface: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setAudioURL(`${BACKEND_URL}${data.audio_url}`);
+        console.log('Response data:', data);
+        
         setKirkResponse(data.text);
         setSummary(data.summary);
         setBookInsight(data.book_insight);
+        
+        if (data.audio_url) {
+          setAudioURL(`${BACKEND_URL}${data.audio_url}`);
+        }
+        
+        if (data.video_url) {
+          setVideoURL(`${BACKEND_URL}${data.video_url}`);
+        }
       }
     } catch (error) {
-      console.error('Error generating speech:', error);
+      console.error('Error generating response:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -64,12 +85,24 @@ const ChatInterface: React.FC = () => {
           onChange={(e) => setText(e.target.value)}
           placeholder="Type your message or use voice input..."
           className="chat-input"
+          disabled={isLoading}
         />
         <div className="chat-controls">
           <AudioRecorder onTranscription={handleTranscription} />
-          <button type="submit" className="submit-button">
-            Send
+          <button type="submit" className="submit-button" disabled={isLoading || !text.trim()}>
+            {isLoading ? 'Processing...' : 'Send'}
           </button>
+        </div>
+        <div className="toggle-container">
+          <label className="toggle-label">
+            <input
+              type="checkbox"
+              checked={useVideo}
+              onChange={() => setUseVideo(!useVideo)}
+              className="toggle-input"
+            />
+            <span className="toggle-text">Use Video Response</span>
+          </label>
         </div>
       </form>
 
@@ -80,25 +113,25 @@ const ChatInterface: React.FC = () => {
               <p>{kirkResponse}</p>
             </div>
           )}
-          {audioURL && (
+          
+          {videoURL && (
+            <div className="video-player-container">
+              <video
+                src={videoURL}
+                controls
+                autoPlay
+                className="video-player"
+              />
+            </div>
+          )}
+          
+          {!videoURL && audioURL && (
             <div className="audio-player-container">
               <audio
                 ref={audioRef}
                 src={audioURL}
                 controls
                 className="audio-player"
-              />
-            </div>
-          )}
-          {videoURL && (
-            <div className="video-player-container">
-              <video
-                src={videoURL}
-                controls
-                loop
-                autoPlay
-                muted
-                className="video-player"
               />
             </div>
           )}
