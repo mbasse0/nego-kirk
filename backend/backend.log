@@ -1,0 +1,16 @@
+🚀 Starting simplified FastAPI server...
+INFO:     Started server process [36283]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+pygame 2.6.1 (SDL 2.28.4, Python 3.9.21)
+Hello from the pygame community. https://www.pygame.org/contribute.html
+Loading environment variables from /Users/mbasse/Documents/MBAn/Global AI Hackathon/webapp-kirk/backend/.env
+Loading environment variables from /Users/mbasse/Documents/MBAn/Global AI Hackathon/webapp-kirk/backend/.env
+Received audio file for transcription
+Transcription successful: Hello Kirk, tell me a joke about negotiations.
+INFO:     127.0.0.1:56480 - "POST /transcribe HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [36283]
