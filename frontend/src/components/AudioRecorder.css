@@ -62,4 +62,133 @@
   100% {
     transform: scale(1);
   }
+}
+
+/* Minimalist Audio Recorder */
+.audio-recorder-minimal {
+  position: relative;
+  display: inline-block;
+}
+
+.mic-button {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  border: none;
+  background-color: var(--library-brown-lighter);
+  color: var(--accent-color);
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  outline: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.mic-button:hover:not(:disabled) {
+  background-color: var(--library-brown-lighter);
+  transform: scale(1.05);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
+}
+
+.mic-button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.mic-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mic-button.recording {
+  background-color: #a33c2c; /* Warm red for recording state */
+  color: var(--text-color);
+  animation: pulse 1.5s infinite;
+}
+
+.mic-button.processing {
+  background-color: var(--accent-color);
+  color: var(--library-brown-darker);
+}
+
+.mic-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.processing-indicator {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid var(--text-color);
+  border-top-color: transparent;
+  animation: spin 0.8s linear infinite;
+  box-sizing: border-box;
+  opacity: 0.7;
+}
+
+.recorder-error-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background-color: #a33c2c; /* Warm red for errors */
+  color: var(--text-color);
+  border-radius: 4px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  pointer-events: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.recorder-error-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #a33c2c transparent transparent transparent;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(163, 60, 44, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(163, 60, 44, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(163, 60, 44, 0);
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 } 

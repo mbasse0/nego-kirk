@@ -3,9 +3,10 @@ import './AudioRecorder.css';
 
 interface AudioRecorderProps {
   onTranscription: (text: string) => void;
+  onTranscriptionComplete?: () => void;
 }
 
-const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscription }) => {
+const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscription, onTranscriptionComplete }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioURL, setAudioURL] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -50,6 +51,14 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscription }) => {
 
           const data = await response.json();
           onTranscription(data.text);
+          
+          // Automatically trigger form submission after transcription is complete
+          if (onTranscriptionComplete && data.text.trim()) {
+            // Add a small delay to ensure the text state is updated
+            setTimeout(() => {
+              onTranscriptionComplete();
+            }, 300);
+          }
         } catch (error) {
           console.error('Error during transcription:', error);
           setError(error instanceof Error ? error.message : 'Failed to transcribe audio');
@@ -75,21 +84,18 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscription }) => {
   };
 
   return (
-    <div className="audio-recorder">
+    <div className="audio-recorder-minimal">
       <button
-        className={`record-button ${isRecording ? 'recording' : ''}`}
+        className={`mic-button ${isRecording ? 'recording' : ''} ${isProcessing ? 'processing' : ''}`}
         onClick={isRecording ? stopRecording : startRecording}
         disabled={isProcessing}
+        aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+        title={isRecording ? 'Stop recording' : 'Start recording'}
       >
-        {isRecording ? 'Stop Recording' : 'Start Recording'}
+        <span className="mic-icon">{isRecording ? '◼' : '🎤'}</span>
+        {isProcessing && <span className="processing-indicator"></span>}
       </button>
-      {isProcessing && <div className="processing">Processing audio...</div>}
-      {error && <div className="error">{error}</div>}
-      {audioURL && (
-        <audio className="audio-player" controls src={audioURL}>
-          Your browser does not support the audio element.
-        </audio>
-      )}
+      {error && <div className="recorder-error-tooltip">{error}</div>}
     </div>
   );
 };

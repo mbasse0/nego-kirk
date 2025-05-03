@@ -112,14 +112,19 @@ def run_wav2lip(audio_path, avatar_path=None):
     unique_id = str(uuid.uuid4())[:8]
     output_path = os.path.join(video_dir, f"result_{timestamp}_{unique_id}.mp4")
     
-    # Optimize image resolution
+    # Optimize image resolution (higher resolution for better quality)
     img = cv2.imread(avatar_path)
     height, width = img.shape[:2]
     aspect_ratio = width / height
-    new_height = int(256 / aspect_ratio)
-    resized = cv2.resize(img, (256, new_height))
-    optimized_image = os.path.join(temp_dir, 'optimized_avatar.jpeg')
-    cv2.imwrite(optimized_image, resized)
+    
+    # Using 512px width for higher quality (up from 256)
+    new_width = 512
+    new_height = int(new_width / aspect_ratio)
+    resized = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_LANCZOS4)
+    
+    # Save as PNG for higher quality
+    optimized_image = os.path.join(temp_dir, 'optimized_avatar.png')
+    cv2.imwrite(optimized_image, resized, [cv2.IMWRITE_PNG_COMPRESSION, 0])
     
     # Find Wav2Lip directory (case insensitive)
     if os.path.exists(os.path.join(script_dir, 'wav2lip')):
@@ -131,7 +136,7 @@ def run_wav2lip(audio_path, avatar_path=None):
     
     # Copy files to the temporary directory
     temp_audio = os.path.join(temp_working_dir, f"input_{unique_id}.mp3")
-    temp_image = os.path.join(temp_working_dir, f"face_{unique_id}.jpeg")
+    temp_image = os.path.join(temp_working_dir, f"face_{unique_id}.png")
     temp_output = os.path.join(temp_working_dir, f"output_{unique_id}.mp4")
     
     shutil.copy2(audio_path, temp_audio)
@@ -141,15 +146,20 @@ def run_wav2lip(audio_path, avatar_path=None):
     inference_path = os.path.join(wav2lip_dir, 'inference.py')
     checkpoint_path = os.path.join(wav2lip_dir, 'checkpoints', 'wav2lip_gan.pth')
     
-    # Basic command with paths that don't have spaces
+    # Check if we need to convert from AVI to MP4
+    temp_avi_path = os.path.join('temp', 'result.avi')
+    temp_mp4_path = os.path.join('temp', 'result.mp4')
+    
+    # Improved command for Wav2Lip with better padding
+    # Removed --nosmooth for better temporal consistency
     command = [
         'python', inference_path,
         '--checkpoint_path', checkpoint_path,
         '--face', temp_image,
         '--audio', temp_audio,
         '--outfile', temp_output,
-        '--pads', '0', '5', '0', '0',
-        '--nosmooth'
+        '--pads', '0', '10', '0', '0',  # Increased bottom padding
+        '--fps', '30'  # Higher frame rate for smoother video
     ]
     
     # Run Wav2Lip
@@ -157,8 +167,48 @@ def run_wav2lip(audio_path, avatar_path=None):
     try:
         subprocess.run(command, check=True)
         
-        # Copy the result back if it exists
+        # Check if we need to convert AVI to MP4 (if temp/result.avi exists but not MP4)
+        if os.path.exists(temp_avi_path) and not os.path.exists(temp_mp4_path):
+            print("Converting AVI to MP4 with higher quality...")
+            convert_command = [
+                'ffmpeg', '-y', '-i', temp_avi_path, 
+                '-c:v', 'libx264', '-preset', 'slow',  # Slower preset for better quality
+                '-crf', '18',  # Lower CRF value means higher quality (18 is high quality)
+                '-c:a', 'aac', '-b:a', '320k',  # Higher audio bitrate
+                '-pix_fmt', 'yuv420p', 
+                '-maxrate', '8M', '-bufsize', '16M',  # Higher bitrate for better quality
+                temp_mp4_path
+            ]
+            subprocess.run(convert_command, check=True)
+            
+            # Use the MP4 file for the output
+            if os.path.exists(temp_mp4_path):
+                shutil.copy2(temp_mp4_path, output_path)
+                print(f"Success! High-quality MP4 output saved to: {output_path}")
+                return os.path.basename(output_path)
+        
+        # If direct output exists, also apply high-quality conversion
         if os.path.exists(temp_output):
+            print("Enhancing output video quality...")
+            enhanced_output = os.path.join(temp_working_dir, f"enhanced_{unique_id}.mp4")
+            enhance_command = [
+                'ffmpeg', '-y', '-i', temp_output, 
+                '-c:v', 'libx264', '-preset', 'slow',  # Slower preset for better quality
+                '-crf', '18',  # Lower CRF value means higher quality
+                '-c:a', 'aac', '-b:a', '320k',  # Higher audio bitrate
+                '-pix_fmt', 'yuv420p',
+                '-maxrate', '8M', '-bufsize', '16M',  # Higher bitrate for better quality
+                enhanced_output
+            ]
+            subprocess.run(enhance_command, check=True)
+            
+            # Use the enhanced output if it exists
+            if os.path.exists(enhanced_output):
+                shutil.copy2(enhanced_output, output_path)
+                print(f"Success! Enhanced output saved to: {output_path}")
+                return os.path.basename(output_path)
+            
+            # Otherwise use the original output
             shutil.copy2(temp_output, output_path)
             print(f"Success! Output saved to: {output_path}")
             return os.path.basename(output_path)
@@ -350,6 +400,29 @@ async def generate_video(request: SpeechRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/video/idle_video.mp4")
+async def get_idle_video():
+    try:
+        print("Requested idle video file")
+        
+        # Get the full path of the idle video file
+        idle_video_path = os.path.join(library_dir, "idle_video.mp4")
+        
+        # Check if file exists
+        if not os.path.exists(idle_video_path):
+            raise HTTPException(status_code=404, detail="Idle video file not found")
+        
+        print(f"Serving idle video from {idle_video_path}, size: {os.path.getsize(idle_video_path)} bytes")
+        return FileResponse(
+            path=idle_video_path, 
+            media_type="video/mp4",
+            filename="idle_video.mp4"
+        )
+    except Exception as e:
+        print(f"Error serving idle video: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/video/{filename}")
 async def get_video(filename: str):
     try:
@@ -393,3 +466,4 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
+ 

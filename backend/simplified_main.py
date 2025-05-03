@@ -110,6 +110,10 @@ def run_wav2lip(audio_path, avatar_path=None):
     inference_path = os.path.join(wav2lip_dir, 'inference.py')
     checkpoint_path = os.path.join(wav2lip_dir, 'checkpoints', 'wav2lip_gan.pth')
     
+    # Check if we need to convert from AVI to MP4
+    temp_avi_path = os.path.join('temp', 'result.avi')
+    temp_mp4_path = os.path.join('temp', 'result.mp4')
+    
     # Basic command with paths that don't have spaces
     command = [
         'python', inference_path,
@@ -125,6 +129,23 @@ def run_wav2lip(audio_path, avatar_path=None):
     print("Running Wav2Lip...")
     try:
         subprocess.run(command, check=True)
+        
+        # Check if we need to convert AVI to MP4 (if temp/result.avi exists but not MP4)
+        if os.path.exists(temp_avi_path) and not os.path.exists(temp_mp4_path):
+            print("Converting AVI to MP4...")
+            convert_command = [
+                'ffmpeg', '-y', '-i', temp_avi_path, 
+                '-c:v', 'libx264', '-preset', 'fast', 
+                '-c:a', 'aac', '-b:a', '192k',
+                '-pix_fmt', 'yuv420p', temp_mp4_path
+            ]
+            subprocess.run(convert_command, check=True)
+            
+            # Use the MP4 file for the output
+            if os.path.exists(temp_mp4_path):
+                shutil.copy2(temp_mp4_path, output_path)
+                print(f"Success! MP4 output saved to: {output_path}")
+                return os.path.basename(output_path)
         
         # Copy the result back if it exists
         if os.path.exists(temp_output):

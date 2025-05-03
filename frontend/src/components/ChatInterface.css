@@ -13,6 +13,7 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  margin-bottom: 2rem; /* Add more space at the bottom of the form */
 }
 
 .chat-input {
@@ -36,6 +37,7 @@
   display: flex;
   gap: 1rem;
   align-items: center;
+  padding-bottom: 0.5rem; /* Add a bit of padding at the bottom */
 }
 
 .submit-button {
@@ -81,7 +83,9 @@
 .chat-main {
   display: flex;
   gap: 2rem;
-  margin-top: 1.5rem;
+  margin-top: 2rem; /* Increased from 1.5rem */
+  border-top: 1px solid #eee; /* Add a separator */
+  padding-top: 1.5rem; /* Add padding to the top */
 }
 
 .chat-left {
@@ -121,4 +125,459 @@
   border-radius: 6px;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1);
   object-fit: cover;
+}
+
+/* Library-themed minimalist design */
+.chat-interface-minimal {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--library-brown);
+  overflow: hidden;
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+
+/* Avatar video container */
+.avatar-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--library-brown);
+  height: 75vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  /* Add a subtle gradient that matches the library theme */
+  background-image: linear-gradient(to bottom, 
+    rgba(46, 26, 17, 1), 
+    rgba(42, 23, 15, 1)
+  );
+  /* Maintain consistent aspect ratio */
+  aspect-ratio: 16/9;
+}
+
+/* Common video styling for consistent size */
+.avatar-video {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.9s ease;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+  object-fit: cover;
+  background-color: var(--library-brown);
+}
+
+/* Ensure videos maintain position when switching */
+.avatar-container::before {
+  content: "";
+  display: block;
+}
+
+.avatar-video.visible {
+  opacity: 1;
+  z-index: 2;
+  transition: opacity 0.9s ease-in;
+}
+
+.avatar-video.hidden {
+  opacity: 0;
+  z-index: 1;
+  transition: opacity 0.9s ease-out;
+}
+
+/* Audio-only indicator */
+.audio-only-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  width: 300px;
+  height: 200px;
+}
+
+.audio-only-indicator p {
+  color: var(--text-color);
+  margin-top: 20px;
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+/* Audio wave animation */
+.audio-wave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 80px;
+}
+
+.audio-wave span {
+  display: block;
+  width: 5px;
+  height: 40px;
+  background-color: var(--accent-color);
+  margin: 0 7px;
+  border-radius: 5px;
+  animation: audio-wave 1.2s infinite ease-in-out;
+}
+
+.audio-wave span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.audio-wave span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.audio-wave span:nth-child(4) {
+  animation-delay: 0.6s;
+}
+
+.audio-wave span:nth-child(5) {
+  animation-delay: 0.8s;
+}
+
+@keyframes audio-wave {
+  0%, 100% {
+    height: 15px;
+  }
+  50% {
+    height: 80px;
+  }
+}
+
+/* Loading spinner */
+.loading-spinner {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 4px solid rgba(217, 173, 124, 0.2);
+  border-top-color: var(--accent-color);
+  animation: spin 1s linear infinite;
+  z-index: 3;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Hidden audio player */
+.audio-hidden {
+  display: none;
+}
+
+/* Input container */
+.input-container {
+  padding: 0.75rem 1rem;
+  background-color: var(--library-brown-darker);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+  width: 100%;
+  margin: 0;
+  border-top: 1px solid var(--library-brown-lighter);
+  position: relative;
+}
+
+.minimal-form {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.minimal-input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--library-brown-lighter);
+  border-radius: 16px;
+  resize: none;
+  font-size: 1rem;
+  line-height: 1.5;
+  background-color: var(--library-brown);
+  color: var(--text-color);
+  transition: all 0.2s ease;
+  height: 48px;
+  overflow: hidden;
+  margin-bottom: 0;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.minimal-input::placeholder {
+  color: rgba(240, 230, 217, 0.5);
+}
+
+.minimal-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 2px 8px rgba(217, 173, 124, 0.2);
+}
+
+.minimal-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.minimal-button {
+  padding: 0.6rem 1.25rem;
+  background-color: var(--accent-color);
+  color: var(--library-brown-darker);
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: background-color 0.2s;
+  font-weight: 500;
+  height: 48px;
+  white-space: nowrap;
+}
+
+.minimal-button:hover {
+  background-color: #c49665;
+}
+
+.minimal-button:disabled {
+  background-color: rgba(217, 173, 124, 0.3);
+  color: rgba(240, 230, 217, 0.5);
+  cursor: not-allowed;
+}
+
+/* Info panel */
+.info-panel {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 320px;
+  max-width: 30%;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  pointer-events: none;
+}
+
+/* Parchment scroll styling */
+.info-card {
+  pointer-events: auto;
+  position: relative;
+  padding: 1.5rem 1.5rem 1.5rem;
+  background-color: #f2e8c9; /* Parchment color */
+  color: #5c3a21; /* Dark brown text */
+  animation: unfurl 0.5s ease-out;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0.5rem;
+  
+  /* Parchment texture */
+  background-image: 
+    repeating-linear-gradient(
+      rgba(0, 0, 0, 0.03) 0px, 
+      rgba(0, 0, 0, 0) 1px, 
+      rgba(0, 0, 0, 0) 2px
+    ),
+    radial-gradient(
+      ellipse at center,
+      #f2e8c9 0%,
+      #e8d9b0 70%,
+      #d5bb83 100%
+    );
+  
+  /* Shadow effects for aged look */
+  box-shadow: 
+    0 3px 7px rgba(0, 0, 0, 0.2),
+    0 0 40px rgba(90, 50, 10, 0.1) inset;
+    
+  /* Scroll-like appearance */
+  border-radius: 30px;
+}
+
+/* Scroll roll effects */
+.info-card::before, .info-card::after {
+  content: "";
+  position: absolute;
+  height: 30px;
+  width: 100%;
+  left: 0;
+  background-color: #f2e8c9;
+}
+
+/* Top curl */
+.info-card::before {
+  top: 0;
+  border-radius: 30px;
+  background-image: 
+    linear-gradient(to bottom, 
+      #d5bb83, 
+      #f2e8c9 60%
+    );
+  box-shadow: 0 2px 5px -2px rgba(0, 0, 0, 0.3) inset;
+  z-index: -1;
+}
+
+/* Bottom curl */
+.info-card::after {
+  display: none; /* Remove the bottom curl completely */
+}
+
+.info-card h4 {
+  margin: 0 0 0.8rem 0;
+  color: #8B4513; /* Saddle Brown - antique look */
+  font-size: 1.2rem;
+  font-family: 'Palatino', 'Georgia', serif;
+  border-bottom: 1px solid rgba(139, 69, 19, 0.3);
+  padding-bottom: 0.5rem;
+  text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.5);
+  text-align: center;
+}
+
+.info-card p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #5c3a21; /* Dark brown for better readability */
+  font-family: 'Palatino', 'Georgia', serif;
+  text-shadow: 0.5px 0.5px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes unfurl {
+  from { 
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+    transform-origin: top center;
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transform-origin: top center;
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* Media queries for different screen sizes */
+@media (max-width: 1024px) {
+  .avatar-container {
+    height: 65vh;
+  }
+}
+
+@media (max-width: 768px) {
+  .avatar-container {
+    height: 55vh;
+  }
+  
+  .info-panel {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    top: 0;
+    right: 0;
+    padding: 1rem;
+    box-sizing: border-box;
+  }
+  
+  .info-card {
+    max-width: 85%;
+    margin: 0 auto;
+  }
+  
+  /* Keep the input layout horizontal but make adjustments for mobile */
+  .minimal-form {
+    gap: 0.5rem;
+  }
+  
+  .minimal-input {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.95rem;
+  }
+  
+  .minimal-button {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Very small screens - stack the layout */
+@media (max-width: 480px) {
+  .minimal-form {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .minimal-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .minimal-input {
+    width: 100%;
+  }
+}
+
+/* Specific styling for idle video */
+.idle-video {
+  background-color: var(--library-brown);
+  object-position: 50% 18%; /* Adjusted to work better with reduced zoom */
+  transform: scale(1.0); /* Reduced from 1.1 to make less zoomed in */
+}
+
+/* Specific styling for response video */
+.response-video {
+  background-color: var(--library-brown);
+  object-position: 50% 17%; /* Adjusted to match idle video new position */
+  transform: scale(0.92); /* Slightly smaller scale to match the idle video with bands */
+  max-width: 96%; /* Ensure the width is slightly smaller */
+  margin: 0 auto; /* Center horizontally */
+}
+
+/* Media query adjustments for video scaling */
+@media (max-width: 1024px) {
+  .idle-video {
+    transform: scale(1.08); /* Reduced from 1.15 */
+  }
+  
+  .response-video {
+    transform: scale(0.95);
+  }
+}
+
+@media (max-width: 768px) {
+  .idle-video {
+    transform: scale(1.12); /* Reduced from 1.2 */
+  }
+  
+  .response-video {
+    transform: scale(0.98);
+  }
 }
