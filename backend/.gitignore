@@ -1,0 +1,2 @@
+# Allow .gitkeep files even in ignored directories
+!.gitkeep 
