@@ -6,6 +6,7 @@ import time
 import shutil
 import uuid
 from pathlib import Path
+import glob
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -54,6 +55,10 @@ app.add_middleware(
 
 # Initialize conversation history
 chat_history = [{"role": "system", "content": SYSTEM_PROMPT}]
+
+# Track latest generated files
+latest_audio_file = None
+latest_video_file = None
 
 class SpeechRequest(BaseModel):
     text: str
@@ -133,6 +138,29 @@ def run_wav2lip(audio_path, avatar_path=None):
         print(f"Error running Wav2Lip: {str(e)}")
         return None
 
+def get_or_create_reply_file():
+    """Find or create a reply.mp3 file in the audio directory"""
+    reply_path = os.path.join(audio_dir, "reply.mp3")
+    
+    # If we have a recent audio file, use that
+    global latest_audio_file
+    if latest_audio_file and os.path.exists(latest_audio_file):
+        shutil.copy2(latest_audio_file, reply_path)
+        return reply_path
+    
+    # If reply.mp3 already exists, return it
+    if os.path.exists(reply_path):
+        return reply_path
+    
+    # Try to find the most recent mp3 file
+    mp3_files = glob.glob(os.path.join(audio_dir, "*.mp3"))
+    if mp3_files:
+        newest_file = max(mp3_files, key=os.path.getctime)
+        shutil.copy2(newest_file, reply_path)
+        return reply_path
+    
+    return None
+
 @app.post("/transcribe")
 async def transcribe_uploaded_audio(file: UploadFile = File(...)):
     """Transcribe uploaded audio from microphone"""
@@ -175,6 +203,14 @@ async def generate_speech(request: SpeechRequest):
         if not audio_filepath:
             raise HTTPException(status_code=500, detail="Failed to generate speech")
         
+        # Store the latest audio file for reply.mp3 endpoint
+        global latest_audio_file
+        latest_audio_file = audio_filepath
+        
+        # Also create reply.mp3 for compatibility
+        reply_path = os.path.join(audio_dir, "reply.mp3")
+        shutil.copy2(audio_filepath, reply_path)
+        
         # Get just the filename from the filepath
         audio_filename = os.path.basename(audio_filepath)
         
@@ -202,6 +238,14 @@ async def generate_video(request: SpeechRequest):
         if not audio_filepath:
             raise HTTPException(status_code=500, detail="Failed to generate speech")
         
+        # Store the latest audio file for reply.mp3 endpoint
+        global latest_audio_file
+        latest_audio_file = audio_filepath
+        
+        # Also create reply.mp3 for compatibility
+        reply_path = os.path.join(audio_dir, "reply.mp3")
+        shutil.copy2(audio_filepath, reply_path)
+        
         # Get just the filename from the filepath
         audio_filename = os.path.basename(audio_filepath)
         
@@ -209,6 +253,10 @@ async def generate_video(request: SpeechRequest):
         video_filename = run_wav2lip(audio_filepath)
         
         if video_filename:
+            # Store the latest video file
+            global latest_video_file
+            latest_video_file = os.path.join(video_dir, video_filename)
+            
             return {
                 "audio_url": f"/audio/{audio_filename}",
                 "video_url": f"/video/{video_filename}",
@@ -224,6 +272,22 @@ async def generate_video(request: SpeechRequest):
             
     except Exception as e:
         print(f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/audio/reply.mp3")
+async def get_reply_audio():
+    """Specialized endpoint for compatibility with old frontend"""
+    try:
+        print("Requesting /audio/reply.mp3")
+        reply_path = get_or_create_reply_file()
+        
+        if not reply_path or not os.path.exists(reply_path):
+            raise HTTPException(status_code=404, detail="No audio file available")
+        
+        print(f"Serving reply audio: {reply_path}")
+        return FileResponse(reply_path, media_type="audio/mpeg")
+    except Exception as e:
+        print(f"Error serving reply.mp3: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/audio/{filename}")
@@ -294,11 +358,23 @@ async def test_video():
         if not audio_filepath:
             raise HTTPException(status_code=500, detail="Failed to generate test audio")
         
+        # Store the latest audio file for reply.mp3 endpoint
+        global latest_audio_file
+        latest_audio_file = audio_filepath
+        
+        # Also create reply.mp3 for compatibility
+        reply_path = os.path.join(audio_dir, "reply.mp3")
+        shutil.copy2(audio_filepath, reply_path)
+        
         # Run simplified Wav2Lip
         video_filename = run_wav2lip(audio_filepath)
         
         if not video_filename:
             raise HTTPException(status_code=500, detail="Failed to generate test video")
+        
+        # Store the latest video file
+        global latest_video_file
+        latest_video_file = os.path.join(video_dir, video_filename)
             
         return {
             "video_url": f"/video/{video_filename}",
